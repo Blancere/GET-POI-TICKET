@@ -1,0 +1,95 @@
+;Script Name  : ETKT_GetPOI_GetROPNO
+;Created By   : WJ ST
+;Created Date : 10MAR25
+;Comment      :
+;ST 02APR25   : Check Expried Tkt  for recredit tax no mile
+;--------------------------------------------------------------------------------------------
+name_arguments #1 'ETKT_POI' #2 'ROP_NO' #3 'TKT_EXPRIED' #4 'RBD_Class'
+build_local_data_item 'lcl_rowSearch' 'lcl_rowFound' 'lcl_input' 'lcl_DataRowCount' 'lcl_RowCount''lcl_Number'  'lcl_Element' 'lcl_Data'  'lcl_Group'  'lcl_SupGroup' 'lcl_Result'\
+'lcl_FFP_Result'  'lcl_Result_dsh' 'lcl_ROP_NUMBER' 'lcl_POI_Result'  'lcl_POI_rowFound' 'lcl_POI2_rowFound' 'lcl_POI2_Result' 'lcl_CurDate' 'lcl_Doi_rowFound' 'lcl_Doi_Result' \
+'lcl_Class' 'lcl_Max_row'
+set lcl_input 'QikRes_Display_Eticket:DataTable'
+set ETKT_POI ''
+get_current_date lcl_CurDate
+
+;==
+set lcl_Input 'QikRes_Display_Eticket:DataTable'
+
+; ----  This loop get  ticket data from 'QikRes_Display_Eticket:DataTable'  ---- ;
+;get_table_row_count lcl_Input lcl_DataRowCount
+;clear_table 'Tb4_1'
+;while lcl_rowFound <= lcl_DataRowCount
+ ;  if lcl_rowFound <= lcl_DataRowCount    ;<   -------   no need ------
+;   copy_table 'QikRes_Display_Eticket:DataTable' lcl_input  lcl_rowFound 
+ ;  insert_table_row 'Tb4_1' lcl_input 
+ ;  calculate lcl_rowFound = lcl_rowFound + '1'
+ ;  end_if       
+;end_while
+;exit
+; ----------      E N D -- get ticket data  -------
+;==
+
+;--------------- Check Class RBD -------------------;
+set lcl_rowFound ''
+search_table lcl_input 'bookingClass'  'Element'  lcl_rowFound
+label 'LoopClass'
+if lcl_rowFound <> ''
+   set lcl_Class '0'
+   copy_table lcl_input lcl_Result lcl_rowFound '^'  'Data'
+   
+   if lcl_Result = 'O' | lcl_Result = 'I'
+      set RBD_Class 'BusinessClass'
+      goto 'Loopexit'
+   end_if
+   if lcl_Result = 'E' | lcl_Result = 'X'
+       set RBD_Class 'EcoClass'
+       calculate lcl_rowFound = lcl_rowFound + '1'
+       search_table lcl_input 'bookingClass'  'Element'  lcl_rowFound lcl_rowFound lcl_Max_row
+       goto 'LoopClass'
+   end_if
+end_if
+label 'Loopexit'
+;--------------- ROP NUMBER -------------------;
+set lcl_rowFound ''
+search_table lcl_input 'fopFreeText'  'Element'  lcl_rowFound
+
+if lcl_rowFound <> ''
+
+   copy_table lcl_input lcl_Result lcl_rowFound '^'  'Data'
+   copy_data_item lcl_FFP_Result lcl_Result '1'  '5'
+   set ROP_NO  ''
+   if lcl_FFP_Result = 'FFRTG'
+      copy_data_item lcl_Result_dsh lcl_Result  '13' '1'
+      if lcl_Result_dsh = '-'
+         copy_data_item lcl_ROP_NUMBER lcl_Result '6' '7'
+         set ROP_NO lcl_ROP_NUMBER
+      end_if
+   end_if
+end_if
+ ;----------------- POT ---------------------------;
+search_table lcl_input 'locationId'  'Element'  lcl_POI_rowFound
+if lcl_POI_rowFound  <> ''
+   copy_table lcl_input lcl_Result lcl_POI_rowFound '^'  'Data'
+   copy_data_item lcl_POI_Result lcl_Result '1'  '3'
+   ;set ETKT_POI lcl_POI_Result
+   set lcl_POI2_rowFound ''
+   if lcl_POI_Result ='MUC'
+      calculate lcl_POI_rowFound = lcl_POI_rowFound +'1'
+      search_table lcl_input 'locationId'  'Element' lcl_POI2_rowFound  lcl_POI_rowFound   ;+
+      if lcl_POI2_rowFound <> ''
+         copy_table lcl_input lcl_POI2_Result lcl_POI2_rowFound '^'  'Data'
+         set ETKT_POI lcl_POI2_Result
+      else
+         set ETKT_POI lcl_POI_Result
+      end_if
+   end_if
+end_if
+
+;-------------------- Check DOI  TKT EXP  ------------------ 02 APR 25
+search_table lcl_input 'date'  'Element'  lcl_Doi_rowFound
+copy_table lcl_input lcl_Result lcl_Doi_rowFound '^'  'Data'
+copy_data_item lcl_Doi_Result lcl_Result '1'  '10'
+; WJ 08APR call 'util:dateFormatter' #1= 'yyyy-mm-dd'  #2=lcl_Doi_Result #3='ddmmyy' #4=lcl_Doi_Result 
+call 'util:dateFormatter' #1= 'yyyy-mm-dd'  #2=lcl_Doi_Result #3='yyyymmdd' #4=lcl_Doi_Result  ;  ST 80APR 25
+set TKT_EXPRIED lcl_Doi_Result
+;----------------------- END CHECK TKT EXP ------------------------------------
